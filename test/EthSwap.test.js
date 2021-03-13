@@ -62,12 +62,50 @@ contract("EthSwap", ([deployer, investor]) => {
 
       ethSwapBalance = await web3.eth.getBalance(ethSwap.address);
       assert.equal(ethSwapBalance.toString(), tokens("1"));
+
       //Check event is working
       const event = result.logs[0].args;
       assert.equal(event.account, investor);
       assert.equal(event.token, token.address);
       assert.equal(event.amount.toString(), tokens("100").toString());
       assert.equal(event.rate.toString(), "100");
+    });
+  });
+
+  describe("sell tokens()", async () => {
+    let result;
+
+    before(async () => {
+      // Investor must approve the tokens
+      await token.approve(ethSwap.address, tokens("100"), { from: investor });
+      //   Investor sells tokens
+      result = await ethSwap.sellTokens(tokens("100"), { from: investor });
+    });
+
+    it("Allow user to sell tokens to ethswap for a fixed price", async () => {
+      // Check if investor send the tokens
+      let investorBalance = await token.balanceOf(investor);
+      assert.equal(investorBalance.toString(), tokens("0"));
+
+      //   Check ethSwap recieved the tokens and sent ether
+      let ethSwapBalance;
+      ethSwapBalance = await token.balanceOf(ethSwap.address);
+      assert.equal(ethSwapBalance.toString(), tokens("1000000"));
+
+      // Check if the tokens were recieved
+      ethSwapBalance = await web3.eth.getBalance(ethSwap.address);
+      assert.equal(ethSwapBalance.toString(), tokens("0"));
+
+      //Check event is working
+      const event = result.logs[0].args;
+      assert.equal(event.account, investor);
+      assert.equal(event.token, token.address);
+      assert.equal(event.amount.toString(), tokens("100").toString());
+      assert.equal(event.rate.toString(), "100");
+
+      //   FAILURE: investor cant sell more tokens than they have
+      await ethSwap.sellTokens(tokens("500"), { from: investor }).should.be
+        .rejected;
     });
   });
 });
